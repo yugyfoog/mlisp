@@ -37,18 +37,32 @@ Cell *environment;
 Cell *atom_symbol;
 Cell *car_symbol;
 Cell *cdr_symbol;
+Cell *cond_symbol;
 Cell *cons_symbol;
 Cell *eq_symbol;
+Cell *label_symbol;
+Cell *lambda_symbol;
 Cell *quote_symbol;
+Cell *rplaca_symbol;
+Cell *rplacd_symbol;
+Cell *set_symbol;
 Cell *t_symbol;
 
 Cell *assoc(Cell *, Cell *);
+Cell *passoc(Cell *, Cell *);
 Cell *car_check(Cell *);
 Cell *cdr_check(Cell *);
+Cell *apply(Cell *, Cell *, Cell *);
 Cell *eval(Cell *, Cell *);
 Cell *eval_cons(Cell *, Cell *);
 Cell *eval_list(Cell *, Cell *);
+Cell *eval_cond(Cell *, Cell *);
+Cell *pair_list(Cell *, Cell *, Cell *);
+Cell *print(Cell *);
 void print_list(Cell *);
+Cell *rplaca(Cell *, Cell*);
+Cell *rplacd(Cell *, Cell *);
+Cell *set(Cell *, Cell *);
 
 void x_undefined(char *file, char const *func, int line) {
   printf("%s() undefined in %s at line %d\n", func, file, line);
@@ -61,6 +75,14 @@ Cell *assoc(Cell *x, Cell *y) {
   if (caar(y) == x)
     return cadar(y);
   return assoc(x, cdr(y));
+}
+
+Cell *passoc(Cell *x, Cell *y) {
+  if (y == 0)
+    return 0;
+  if (caar(y) == x)
+    return car(x);
+  return passoc(x, cdr(y));
 }
 
 Cell *atom(Cell *x) {
@@ -92,6 +114,13 @@ Cell *cons(Cell *a, Cell *d) {
 }
 
 Cell *eval(Cell *f, Cell *e) {
+  /*
+  printf("(eval ");
+  print(f);
+  printf(" ");
+  print(e);
+  printf(")\n");
+  */
   if (f) {
     if (atom(f))
       return assoc(f, e);
@@ -102,30 +131,72 @@ Cell *eval(Cell *f, Cell *e) {
 
 Cell *eval_cons(Cell *f, Cell *e) {
   if (atom(car(f))) {
-    if (car(f) == 0)
-      return 0;
-    if (car(f) == atom_symbol)
-      return atom(eval(cadr(f), e));
-    if (car(f) == car_symbol)
-      return car_check(eval(cadr(f), e));
-    if (car(f) == cdr_symbol)
-      return cdr_check(eval(cadr(f), e));
-    if (car(f) == cons_symbol)
-      return cons(eval(cadr(f), e), eval(caddr(f), e));
-    if (car(f) == eq_symbol)
-      return eval(cadr(f), e) == eval(caddr(f), e) ? t_symbol : 0;
+    if (car(f) == cond_symbol)
+      return eval_cond(cdr(f), e);
     if (car(f) == quote_symbol)
       return cadr(f);
-    return eval(cons(assoc(car(f), e), eval_list(cdr(f), e)), e);
+    if (car(f) == lambda_symbol)
+      return f;
+    return apply(car(f), eval_list(cdr(f), e), e);
   }
-  XXX();
+  return apply(car(f), eval_list(cdr(f), e), e);
+}
+
+Cell *apply(Cell *fn, Cell *x, Cell *a) {
+  /*
+  printf("(apply ");
+  print(fn);
+  printf(" ");
+  print(x);
+  printf(" ");
+  print(a);
+  printf(")\n");
+  */
+  if (atom(fn)) {
+    if (fn == atom_symbol)
+      return atom(car(x)); 
+    if (fn == car_symbol)
+      return car_check(car(x));
+    if (fn == cdr_symbol)
+      return cdr_check(car(x));
+    if (fn == cons_symbol)
+      return cons(car(x), cadr(x));
+    if (fn == eq_symbol)
+      return car(x) == cadr(x) ? t_symbol : 0;
+    if (fn == rplaca_symbol)
+      return rplaca(car(x), cadr(x));
+    if (fn == rplacd_symbol)
+      return rplacd(car(x), cadr(x));
+    if (fn == set_symbol)
+      return set(car(x), cadr(x));
+    return apply(eval(fn, a), x, a);
+  }
+  if (car(fn) == label_symbol)
+    return apply(caddr(fn), x, cons(cons(cadr(fn), caddr(fn)), a));
+  if (car(fn) == lambda_symbol)
+    return eval(caddr(fn), pair_list(cadr(fn), x, a));
+  printf("illegal form\n");
   return 0;
+}
+
+Cell *pair_list(Cell *x, Cell *y, Cell *a) {
+  if (x == 0)
+    return a;
+  return cons(list2(car(x), car(y)), pair_list(cdr(x), cdr(y), a));
 }
 
 Cell *eval_list(Cell *x, Cell *y) {
   if (x == 0)
     return 0;
   return cons(eval(car(x), y), eval_list(cdr(x), y));
+}
+
+Cell *eval_cond(Cell *c, Cell *e) {
+  if (c == 0)
+    return 0;
+  if (eval(caar(c), e))
+    return eval(cadar(c), e);
+  return eval_cond(cdr(c), e);
 }
 
 Cell *read(void);
@@ -278,6 +349,31 @@ Cell *read() {
   return read_more();
 }
 
+Cell *rplaca(Cell *x, Cell *y) {
+  if (x == 0 || atom(x))
+    printf("rplaca not a cons\n");
+  else
+    x->car = y;
+  return 0;
+}
+
+Cell *rplacd(Cell *x, Cell *y) {
+  if (x == 0 || atom(x))
+    printf("rplacd not a cons\n");
+  else
+    x->cdr = y;
+  return 0;
+}
+
+Cell *set(Cell *x, Cell *y) {
+  Cell *z = passoc(x, environment);
+  if (z == 0)
+    environment = cons(list2(x, y), environment);
+  else
+    rplacd(x, y);
+  return x;
+}
+
 void repl() {
   for (;;) { 
     print(eval(read(), environment));
@@ -289,9 +385,15 @@ void initialize_symbols() {
   atom_symbol = new_symbol("atom");
   car_symbol = new_symbol("car");
   cdr_symbol = new_symbol("cdr");
+  cond_symbol = new_symbol("cond");
   cons_symbol = new_symbol("cons");
   eq_symbol = new_symbol("eq");
+  label_symbol = new_symbol("label");
+  lambda_symbol = new_symbol("lambda");
   quote_symbol = new_symbol("quote");
+  rplaca_symbol = new_symbol("rplaca");
+  rplacd_symbol = new_symbol("rplacd");
+  set_symbol = new_symbol("set");
   t_symbol = new_symbol("t");
 }
 
