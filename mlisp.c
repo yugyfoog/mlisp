@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <unistd.h>
 
 #define XXX() x_undefined(__FILE__,__FUNCTION__,__LINE__)
 #define new(t) ((t *)malloc(sizeof(t)))
@@ -30,6 +31,7 @@ typedef struct Cell {
 char *token;
 int token_size;
 int token_index;
+int do_output;
 
 Cell *symbol_list;
 Cell *environment;
@@ -47,6 +49,12 @@ Cell *rplaca_symbol;
 Cell *rplacd_symbol;
 Cell *set_symbol;
 Cell *t_symbol;
+Cell *end_of_file_symbol;
+
+FILE *input;
+
+void initialize_symbols(void);
+void repl(void);
 
 Cell *assoc(Cell *, Cell *);
 Cell *passoc(Cell *, Cell *);
@@ -60,9 +68,57 @@ Cell *eval_cond(Cell *, Cell *);
 Cell *pair_list(Cell *, Cell *, Cell *);
 Cell *print(Cell *);
 void print_list(Cell *);
+Cell *lisp_read(void);
 Cell *rplaca(Cell *, Cell*);
 Cell *rplacd(Cell *, Cell *);
 Cell *set(Cell *, Cell *);
+
+int main(int argc, char **argv) {
+  initialize_symbols();
+  do_output = 0;
+  input = fopen("stdlib.l", "r");
+  if (input) {
+    repl();
+    fclose(input);
+  }
+  do_output = 1;
+  switch (argc) {
+  case 1:
+    input = stdin;
+    repl();
+    break;
+  case 2:
+    input = fopen(argv[1], "r");
+    if (input == 0) {
+      printf("unable to open %s\n", argv[1]);
+      return 1;
+    }
+    repl();
+    break;
+  default:
+    printf("usage: mlisp [source.l]");
+    return 1;
+  }
+  return 0;
+}
+
+void repl() {
+  Cell *x;
+  for (;;) {
+    if (isatty(fileno(input)) && do_output) {
+      printf("\n>");
+      fflush(stdout);
+    }
+    x = lisp_read();
+    if (x == end_of_file_symbol)
+      break;
+    x = eval(x, environment);
+    if (do_output) {
+      print(x);
+      printf("\n");
+    }
+  }
+}
 
 void x_undefined(char *file, char const *func, int line) {
   printf("%s() undefined in %s at line %d\n", func, file, line);
@@ -169,6 +225,11 @@ Cell *apply(Cell *fn, Cell *x, Cell *a) {
       return rplacd(car(x), cadr(x));
     if (fn == set_symbol)
       return set(car(x), cadr(x));
+    fn = eval(fn, a);
+    if (fn == 0) {
+      printf("function not defined\n");
+      return 0;
+    }
     return apply(eval(fn, a), x, a);
   }
   if (car(fn) == label_symbol)
@@ -199,7 +260,6 @@ Cell *eval_cond(Cell *c, Cell *e) {
   return eval_cond(cdr(c), e);
 }
 
-Cell *read(void);
 Cell *read_more(void);
 
 Cell *print(Cell *x) {
@@ -252,12 +312,12 @@ int white_space() {
   int c;
   
   for (;;) {
-    c = getchar();
+    c = getc(input);
     if (c == EOF)
       return c;
     if (c == ';') {
       do {
-	c = getchar();
+	c = getc(input);
       } while (c != '\n' && c != EOF);
       if (c == EOF)
 	return c;
@@ -279,9 +339,9 @@ void read_token() {
   if (strchr("()'", c))
     return;
   for (;;) {
-    c = getchar();
+    c = getc(input);
     if (strchr("()", c) || !isgraph(c)) {
-      ungetc(c, stdin);
+      ungetc(c, input);
       return;
     }
     add_token(c);
@@ -316,7 +376,7 @@ Cell *read_list_more() {
     exit(1);
   }
   if (strcmp(token, ".") == 0) {
-    x = cons(x, read());
+    x = cons(x, lisp_read());
     read_token();
     if (strcmp(token, ")") != 0)
       printf("illegal dotted list\n");
@@ -338,14 +398,14 @@ Cell *read_more() {
   if (strcmp(token, "(") == 0)
     return read_list();
   if (strcmp(token, "'") == 0)
-    return list2(quote_symbol, read());
+    return list2(quote_symbol, lisp_read());
   return read_symbol(symbol_list);
 }
 
-Cell *read() {
+Cell *lisp_read() {
   read_token();
   if (strcmp(token, "") == 0)
-    exit(1);
+    return end_of_file_symbol;
   return read_more();
 }
 
@@ -374,13 +434,6 @@ Cell *set(Cell *x, Cell *y) {
   return x;
 }
 
-void repl() {
-  for (;;) { 
-    print(eval(read(), environment));
-    printf("\n");
-  }
-}
-
 void initialize_symbols() {
   atom_symbol = new_symbol("atom");
   car_symbol = new_symbol("car");
@@ -395,10 +448,7 @@ void initialize_symbols() {
   rplacd_symbol = new_symbol("rplacd");
   set_symbol = new_symbol("set");
   t_symbol = new_symbol("t");
+
+  end_of_file_symbol = new_symbol("end-of-file");
 }
 
-int main() {
-  initialize_symbols();
-  repl();
-  return 0;
-}
