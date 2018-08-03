@@ -36,6 +36,7 @@ int do_output;
 Cell *symbol_list;
 Cell *environment;
 
+Cell *and_symbol;
 Cell *atom_symbol;
 Cell *car_symbol;
 Cell *cdr_symbol;
@@ -44,6 +45,7 @@ Cell *cons_symbol;
 Cell *eq_symbol;
 Cell *label_symbol;
 Cell *lambda_symbol;
+Cell *or_symbol;
 Cell *quote_symbol;
 Cell *rplaca_symbol;
 Cell *rplacd_symbol;
@@ -56,6 +58,8 @@ FILE *input;
 void initialize_symbols(void);
 void repl(void);
 
+Cell *and(Cell *, Cell *);
+Cell *or(Cell *, Cell *);
 Cell *assoc(Cell *, Cell *);
 Cell *passoc(Cell *, Cell *);
 Cell *car_check(Cell *);
@@ -125,6 +129,22 @@ void x_undefined(char *file, char const *func, int line) {
   exit(1);
 }
 
+Cell *and(Cell *x, Cell *e) {
+  if (x == 0)
+    return t_symbol;
+  if (eval(car(x), e) == 0)
+    return 0;
+  return and(cdr(x), e);
+}
+
+Cell *or(Cell *x, Cell *e) {
+  if (x == 0)
+    return 0;
+  if (eval(car(x), e) != 0)
+    return t_symbol;
+  return or(cdr(x), e);
+}
+
 Cell *assoc(Cell *x, Cell *y) {
   if (y == 0)
     return 0;
@@ -137,7 +157,7 @@ Cell *passoc(Cell *x, Cell *y) {
   if (y == 0)
     return 0;
   if (caar(y) == x)
-    return car(x);
+    return car(y);
   return passoc(x, cdr(y));
 }
 
@@ -176,6 +196,7 @@ Cell *eval(Cell *f, Cell *e) {
   printf(" ");
   print(e);
   printf(")\n");
+  fflush(stdout);
   */
   if (f) {
     if (atom(f))
@@ -187,6 +208,10 @@ Cell *eval(Cell *f, Cell *e) {
 
 Cell *eval_cons(Cell *f, Cell *e) {
   if (atom(car(f))) {
+    if (car(f) == and_symbol)
+      return and(cdr(f), e);
+    if (car(f) == or_symbol)
+      return or(cdr(f), e);
     if (car(f) == cond_symbol)
       return eval_cond(cdr(f), e);
     if (car(f) == quote_symbol)
@@ -207,6 +232,7 @@ Cell *apply(Cell *fn, Cell *x, Cell *a) {
   printf(" ");
   print(a);
   printf(")\n");
+  fflush(stdout);
   */
   if (atom(fn)) {
     if (fn == atom_symbol)
@@ -230,7 +256,7 @@ Cell *apply(Cell *fn, Cell *x, Cell *a) {
       printf("function not defined\n");
       return 0;
     }
-    return apply(eval(fn, a), x, a);
+    return apply(fn, x, a);
   }
   if (car(fn) == label_symbol)
     return apply(caddr(fn), x, cons(cons(cadr(fn), caddr(fn)), a));
@@ -429,12 +455,17 @@ Cell *set(Cell *x, Cell *y) {
   Cell *z = passoc(x, environment);
   if (z == 0)
     environment = cons(list2(x, y), environment);
-  else
-    rplacd(x, y);
+  else {
+    printf("->");
+    print(z);
+    printf("\n");
+    rplaca(cdr(z), y);
+  }
   return x;
 }
 
 void initialize_symbols() {
+  and_symbol = new_symbol("and");
   atom_symbol = new_symbol("atom");
   car_symbol = new_symbol("car");
   cdr_symbol = new_symbol("cdr");
@@ -443,6 +474,7 @@ void initialize_symbols() {
   eq_symbol = new_symbol("eq");
   label_symbol = new_symbol("label");
   lambda_symbol = new_symbol("lambda");
+  or_symbol = new_symbol("or");
   quote_symbol = new_symbol("quote");
   rplaca_symbol = new_symbol("rplaca");
   rplacd_symbol = new_symbol("rplacd");
