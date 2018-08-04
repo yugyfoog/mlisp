@@ -9,10 +9,9 @@
 
 #define TOKEN_DELTA 16
 
-#define car(x) ((x)->car)
-#define cdr(x) ((x)->cdr)
 #define caar(x) car(car(x))
 #define cadr(x) car(cdr(x))
+#define cdar(x) cdr(car(x))
 #define cadar(x) car(cdr(car(x)))
 #define caddr(x) car(cdr(cdr(x)))
 #define list2(x,y) cons(x, cons(y, 0))
@@ -45,6 +44,7 @@ Cell *cons_symbol;
 Cell *eq_symbol;
 Cell *label_symbol;
 Cell *lambda_symbol;
+Cell *list_symbol;
 Cell *or_symbol;
 Cell *quote_symbol;
 Cell *rplaca_symbol;
@@ -62,8 +62,8 @@ Cell *and(Cell *, Cell *);
 Cell *or(Cell *, Cell *);
 Cell *assoc(Cell *, Cell *);
 Cell *passoc(Cell *, Cell *);
-Cell *car_check(Cell *);
-Cell *cdr_check(Cell *);
+Cell *car(Cell *);
+Cell *cdr(Cell *);
 Cell *apply(Cell *, Cell *, Cell *);
 Cell *eval(Cell *, Cell *);
 Cell *eval_cons(Cell *, Cell *);
@@ -167,16 +167,16 @@ Cell *atom(Cell *x) {
   return 0;
 }
 
-Cell *car_check(Cell *x) {
+Cell *car(Cell *x) {
   if (x && !atom(x))
-    return car(x);
+    return x->car;
   printf("car of non list\n");
   return 0;
 }
 
-Cell *cdr_check(Cell *x) {
+Cell *cdr(Cell *x) {
   if (x && !atom(x))
-    return cdr(x);
+    return x->cdr;
   printf("cdr of non list\n");
   return 0;
 }
@@ -238,13 +238,15 @@ Cell *apply(Cell *fn, Cell *x, Cell *a) {
     if (fn == atom_symbol)
       return atom(car(x)); 
     if (fn == car_symbol)
-      return car_check(car(x));
+      return caar(x);
     if (fn == cdr_symbol)
-      return cdr_check(car(x));
+      return cdar(x);
     if (fn == cons_symbol)
       return cons(car(x), cadr(x));
     if (fn == eq_symbol)
       return car(x) == cadr(x) ? t_symbol : 0;
+    if (fn == list_symbol)
+      return x;
     if (fn == rplaca_symbol)
       return rplaca(car(x), cadr(x));
     if (fn == rplacd_symbol)
@@ -290,7 +292,7 @@ Cell *read_more(void);
 
 Cell *print(Cell *x) {
   if (x == 0)
-    printf("()");
+    printf("nil");
   else if (atom(x))
     printf(x->symbol);
   else {
@@ -474,6 +476,7 @@ void initialize_symbols() {
   eq_symbol = new_symbol("eq");
   label_symbol = new_symbol("label");
   lambda_symbol = new_symbol("lambda");
+  list_symbol = new_symbol("list");
   or_symbol = new_symbol("or");
   quote_symbol = new_symbol("quote");
   rplaca_symbol = new_symbol("rplaca");

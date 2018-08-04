@@ -1,0 +1,136 @@
+\documentclass[12pt]{article}
+\begin{document}
+\title{mlisp}
+\author{Mark Kamradt}
+\maketitle
+\section*{Built-in Functions}
+\subsection*{\texttt{and}}
+\texttt{(and \emph{args})} returns \texttt{t} if none of its arguments are \texttt{nil}, otherwise \texttt{nil}.
+\texttt{and} evaluates its arguments one at a time and returns \texttt{nil} once an argument is \texttt{nil}.
+The remaining arguments are not evaluated.
+\begin{center}
+\begin{tabular}{rcl}
+\texttt{(and t t)} & $\to$ & \texttt{t} \\
+\texttt{(and t nil)} & $\to$ & \texttt{nil} \\
+\texttt{(and nil t)} & $\to$ & \texttt{nil} \\
+\texttt{(and nil nil)} & $\to$ & \texttt{nil} \\
+\texttt{(and)} & $\to$ & \texttt{t} \\
+\texttt{(and t t t t)} & $\to$ & \texttt{t} \\
+\texttt{(and t t nil t)} & $\to$ & \texttt{nil}
+\end{tabular}
+\end{center}
+\subsection*{\texttt{append}}
+\texttt{(append x y)} returns the list \texttt{x} with \texttt{y} appended to the end.
+\begin{center}
+\begin{tabular}{rcl}
+\texttt{(append `(a b c) `(x y z))} & $\to$ & \texttt{(a b c x y z)} \\
+\texttt{(append `(a b c) nil)} & $\to$ & \texttt{(a b c)} \\
+\texttt{(append nil `(a b c))} & $\to$ & \texttt{(a b c)} \\
+\texttt{(append `(a b c) `x)} & $\to$ & \texttt{(a b c $.$ x)}
+\end{tabular}
+\end{center}
+\subsection*{\texttt{atom}}
+\texttt{(atom x)} returns \texttt{t} if \texttt{x} is an symbol, otherwise \texttt{nil}.
+\begin{center}
+\begin{tabular}{rcl}
+\texttt{(atom `a)} & $\to$ & \texttt{t} \\
+\texttt{(atom `(a b c))} & $\to$ & \texttt{nil} \\
+\texttt{(atom nil)} & $\to$ & \texttt{nil} \\
+\texttt{(atom `nil)} & $\to$ & \texttt{t} \\
+\texttt{(atom ())} & $\to$ & \texttt{nil} \\
+\texttt{(atom `())} & $\to$ & \texttt{nil}
+\end{tabular}
+\end{center}
+Note that other lisp implementations consider the value \texttt{nil} to be an atom.
+mlisp considers \texttt{nil} to be an empty list and, therefore, not an atom.
+\subsection*{\texttt{car} and \texttt{cdr}}
+\texttt{(car x)} returns the first item in the list \texttt{x}.
+\texttt{(cdr x)} returns the remaining items in the list \texttt{x} after the first item is removed.
+\begin{center}
+\begin{tabular}{rcl}
+\texttt{(car `(a b c))} & $\to$ & \texttt{a} \\
+\texttt{(car `((a b c) x y)} & $\to$ & \texttt{(a b c)} \\
+\texttt{(cdr `(a b c))} & $\to$ & \texttt{(b c)} \\
+\texttt{(cdr `((a b c) x y)} & $\to$ & \texttt{(x y)} \\
+\texttt{(cdr `(a))} & $\to$ & \texttt{nil}
+\end{tabular}
+\end{center}
+Nested \texttt{car}s and \texttt{cdr}s can be abbreviated. \texttt{(caddr x)} is the same as \texttt{(car (cdr (cdr x)))}.
+\subsection*{\texttt{cons}}
+\texttt{(cons x y)} returns a list with \texttt{x} as the first item and \texttt{y} as the remaining items.
+\begin{center}
+\begin{tabular}{rcl}
+\texttt{(cons `a `(b c))} & $\to$ & \texttt{(a b c)} \\
+\texttt{(cons `a nil)} & $\to$ & \texttt{(a)} \\
+\texttt{(cons `a `b)} & $\to$ & \texttt{(a $.$ b)} \\
+\texttt{(cons (car `(a b c)) (cdr `(a b c)))} & $\to$ & \texttt{(a b c)}
+\end{tabular}
+\end{center}
+\subsection*{\texttt{copy}}
+\texttt{(copy x)} returns a copy of \texttt{x}.
+\begin{center}
+\begin{tabular}{rcl}
+\texttt{(copy `((a b c) x y z)} & $\to$ & \texttt{((a b c) x y z)} \\
+\end{tabular}
+\end{center}
+\subsection*{\texttt{eq}}
+\texttt{(eq x y)} returns \texttt{t} if \texttt{x} and \texttt{y} are the same object, otherwise \texttt{nil}.
+Identical symbols are considered the same object. Lists that are identical are not the same object except the empty list.
+\begin{center}
+\begin{tabular}{rcl}
+\texttt{(eq `a `a)} & $\to$ & \texttt{t} \\
+\texttt{(eq `a `b)} & $\to$ & \texttt{nil} \\
+\texttt{(eq `(a b c) `(a b c))} & $\to$ & \texttt{nil} \\
+\texttt{(eq () nil)} & $\to$ & \texttt{t}
+\end{tabular}
+\end{center}
+\subsection*{\texttt{equal}}
+\texttt{(equal x y)} returns \texttt{t} if \texttt{x} and \texttt{y} are identical.
+\begin{center}
+\begin{tabular}{rcl}
+\texttt{(equal nil nil)} & $\to$ & \texttt{t} \\
+\texttt{(equal `a `a)} & $\to$ & \texttt{t} \\
+\texttt{(equal `a `b)} & $\to$ & \texttt{nil} \\
+\texttt{(equal `(a b c) `(a b c))} & $\to$ & \texttt{t} \\
+\texttt{(equal `((x y z) a b c) `((x y z) a b c))} & $\to$ & \texttt{t} \\
+\end{tabular}
+\end{center}
+\subsection*{\texttt{list}}
+\texttt{(list \emph{args})} returns its arguments as a single list.
+\begin{center}
+\begin{tabular}{rcl}
+\texttt{(list `a `b `c)} & $\to$ & \texttt{(a b c)} \\
+\texttt{(list `(a b) `(c d))} & $\to$ & \texttt{((a b) (c d))} \\
+\texttt{(list `a)} & $\to$ & \texttt{(a)} \\
+\texttt{(list)} & $\to$ & \texttt{nil} 
+\end{tabular}
+\end{center}
+\subsection*{\texttt{not} and \texttt{null}}
+\texttt{(null x)} returns \texttt{t} if \texttt{x} is \texttt{nil}, otherwise \texttt{nil}. 
+\texttt{(not x)} is the same as \texttt{(null x)}.
+\begin{center}
+\begin{tabular}{rcl}
+\texttt{(null ())} & $\to$ & \texttt{t} \\
+\texttt{(null `())} & $\to$ & \texttt{t} \\
+\texttt{(null nil)} & $\to$ & \texttt{t} \\
+\texttt{(null `nil)} & $\to$ & \texttt{nil} \\
+\texttt{(not `a)} & $\to$ & \texttt{nil} \\
+\texttt{(not `(a b c))} & $\to$ & \texttt{nil} \\
+\end{tabular}
+\end{center}
+\subsection*{\texttt{or}}
+\texttt{(or \emph{args})} returns \texttt{nil} if all of its arguments are \texttt{nil}, otherwise \texttt{t}.
+\texttt{or} evaluates its arguments one at a time and returns \texttt{t} once an argument is not \texttt{nil}.
+The remaining arguments are not evaluated.
+\begin{center}
+\begin{tabular}{rcl}
+\texttt{(or t t)} & $\to$ & \texttt{t} \\
+\texttt{(or t nil)} & $\to$ & \texttt{t} \\
+\texttt{(or nil t)} & $\to$ & \texttt{t} \\
+\texttt{(or nil nil)} & $\to$ & \texttt{nil} \\
+\texttt{(or)} & $\to$ & \texttt{nil} \\
+\texttt{(or t t nil t)} & $\to$ & \texttt{t} \\
+\texttt{(or nil nil nil nil)} & $\to$ & \texttt{nil}
+\end{tabular}
+\end{center}
+\end{document}
